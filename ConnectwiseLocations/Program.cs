@@ -7,17 +7,31 @@ using Aspose.Cells;
 using System.Runtime.InteropServices;
 using System.Reflection;
 
+/* TODO 
+ * Remove Excess comments from program
+ Add GUI Input box for client authorization
+*/
+
 namespace ConnectwiseLocations
 {
     public class Program
     {
         public static Stopwatch s = Stopwatch.StartNew();
+        public static string auth, clientID;
+
         static void Main(string[] args)
         {
+            Console.WriteLine("Enter your authorization: ");
+            auth = Console.ReadLine();
+            Console.WriteLine("Enter your clientID: ");
+            clientID = Console.ReadLine();
             s.Start(); //Timer
             var Companies = makeCompanySet();
             WriteCSV(Companies);
+            
         }
+
+
 
         public static string WebRequest(string url)
         {
@@ -26,9 +40,11 @@ namespace ConnectwiseLocations
             {
                 using (HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Get, url))
                 {
-
-                    client.DefaultRequestHeaders.Add("Authorization", "Basic Z2RzK1p1MmIxRHI4UHJKTk1pR0Q6b2lMMG40a3MzYkgySUJndg=="); //Jacobb authorization added -- 7/12/22
-                    client.DefaultRequestHeaders.Add("clientID", "be97d76e-6436-4cd7-ab32-9e8e86369453");
+                    
+                    //client.DefaultRequestHeaders.Add("Authorization", "Basic Z2RzK1p1MmIxRHI4UHJKTk1pR0Q6b2lMMG40a3MzYkgySUJndg=="); //Jacobb authorization added -- 7/12/22
+                    client.DefaultRequestHeaders.Add("Authorization", "Basic " + auth) ;
+                    //client.DefaultRequestHeaders.Add("clientID", "be97d76e-6436-4cd7-ab32-9e8e86369453");
+                    client.DefaultRequestHeaders.Add("clientID", clientID);
                     var response = client.SendAsync(request).Result;
                     var content = response.Content.ReadAsStringAsync().Result;
                     if (!response.IsSuccessStatusCode)
@@ -220,8 +236,6 @@ namespace ConnectwiseLocations
             while (currPage <= numPages) // (currPage <= numPages)
             {
                 var temp = getCompanies((int)maxPageSize, currPage);
-                
-
                 foreach (var i in temp)
 
                 {   
