@@ -7,24 +7,13 @@ using Aspose.Cells;
 using System.Runtime.InteropServices;
 using System.Reflection;
 
-/* TODO 
- * Remove Excess comments from program
- Add GUI Input box for client authorization
-*/
-
 namespace ConnectwiseLocations
 {
     public class Program
     {
         public static Stopwatch s = Stopwatch.StartNew();
-        public static string auth, clientID;
-
         static void Main(string[] args)
         {
-            Console.WriteLine("Enter your authorization: ");
-            auth = Console.ReadLine();
-            Console.WriteLine("Enter your clientID: ");
-            clientID = Console.ReadLine();
             s.Start(); //Timer
             var Companies = makeCompanySet();
             WriteCSV(Companies);
@@ -32,29 +21,35 @@ namespace ConnectwiseLocations
         }
 
 
-
         public static string WebRequest(string url)
         {
-
             using (var client = new HttpClient())
             {
                 using (HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Get, url))
                 {
-                    
-                    //client.DefaultRequestHeaders.Add("Authorization", "Basic Z2RzK1p1MmIxRHI4UHJKTk1pR0Q6b2lMMG40a3MzYkgySUJndg=="); //Jacobb authorization added -- 7/12/22
-                    client.DefaultRequestHeaders.Add("Authorization", "Basic " + auth) ;
-                    //client.DefaultRequestHeaders.Add("clientID", "be97d76e-6436-4cd7-ab32-9e8e86369453");
-                    client.DefaultRequestHeaders.Add("clientID", clientID);
-                    var response = client.SendAsync(request).Result;
-                    var content = response.Content.ReadAsStringAsync().Result;
-                    if (!response.IsSuccessStatusCode)
+                    try
                     {
-                        throw new Exception($"{content}: {response.StatusCode}");
+                        client.DefaultRequestHeaders.Add("Authorization", "Basic Z2RzK1p1MmIxRHI4UHJKTk1pR0Q6b2lMMG40a3MzYkgySUJndg=="); //JacobB authorization added -- 7/12/22
+                        client.DefaultRequestHeaders.Add("clientID", "be97d76e-6436-4cd7-ab32-9e8e86369453"); //JacobB clientID added -- 7/12/22
+                        var response = client.SendAsync(request).Result;
+                        var content = response.Content.ReadAsStringAsync().Result;
+
+                        if (!response.IsSuccessStatusCode)
+                        {
+                            throw new Exception($"{content}: {response.StatusCode}");
+                        }
+                        return content;
                     }
-                    return content;
+                    catch
+                    {
+                        Console.WriteLine("Your Authorization or ClientID is invalid, please try again.");
+                        Environment.Exit(0);
+                    }
                 }
+                return "Invalid"; // Returns invalid if exception is caught
             }
         }
+
 
         // Web request for generating what the new site name should be
         public static string MiddlewareWebRequest(Site a)
@@ -101,10 +96,10 @@ namespace ConnectwiseLocations
                     {
                         return null;
                     }
-
                 }
             }
         }
+
 
         // Web request for getting a list of companies
         public static List<Company> getCompanies(int pageSize, int pageNum)
@@ -118,7 +113,6 @@ namespace ConnectwiseLocations
             var url = "https://connectwise.getgds.com/v4_6_release/apis/3.0/company/companies/?conditions=deletedflag=false&pagesize=" +  pageSize + "&page=" + pageNum; //deletedFlag = true to get a list of deleted sites(Do the same in the getCount function)
             var results = JsonConvert.DeserializeObject<List<Company>>(WebRequest(url), settings);
             return results;
-
         }
 
 
@@ -136,6 +130,7 @@ namespace ConnectwiseLocations
             return results;
         }
 
+
         // Returns number of companies connectwise has
         public static long getCount()
         {
@@ -148,9 +143,8 @@ namespace ConnectwiseLocations
             var url = "https://connectwise.getgds.com/v4_6_release/apis/3.0/company/companies/count/?conditions=deletedflag=false"; // deletedFlag = true to get a list of deleted sites (Do the same in the getCompanies function)
             var results = JsonConvert.DeserializeObject<Number>(WebRequest(url), settings);
             return results.Count;
-            
-
         }
+
 
         // Checks if the current name for the site is valid
         public static bool isValidName(Site s)
@@ -170,9 +164,7 @@ namespace ConnectwiseLocations
                 else return false;
             }
             return false;
-
         }
-
 
 
         // Checks if sites have the same new site name to flag them as duplicates, then picks the most recently updated as the site to keep 
@@ -194,6 +186,7 @@ namespace ConnectwiseLocations
                     }
                     if (tempList.Count > 1)
                     {
+                        // Determines the main site based on if it is flagged as primary address or it is the last updated site in that order
                         var latestUpdate = tempList.Max(s => s.Info.LastUpdated);
                         var bestSite = tempList.Find(s => s.Info.LastUpdated == latestUpdate);
                         var priSite = tempList.Find(s => s.PrimaryAddressFlag == true);
@@ -221,25 +214,25 @@ namespace ConnectwiseLocations
             }
         }
 
+
         // Makes a set of all companies. Adds list of sites, adds new site name, and checks for duplicate sites for each company
         public static HashSet<Company> makeCompanySet()
             {
             double LocationCount = getCount();
             int currPage = 1;
-            double maxPageSize = 100; //500 
-            double x = LocationCount / maxPageSize; //x = 4918 / 500 = 9.836
-            double numPages = Math.Ceiling(x); // numPages = 10
+            double maxPageSize = 100; // Original -> 500 
+            double x = LocationCount / maxPageSize; 
+            double numPages = Math.Ceiling(x); 
             var CompanySet = new HashSet<Company>();
             var csv = new StringBuilder();
 
-
-            while (currPage <= numPages) // (currPage <= numPages)
+            while (currPage <= numPages) // Original -> (currPage <= numPages)
             {
                 var temp = getCompanies((int)maxPageSize, currPage);
                 foreach (var i in temp)
 
                 {   
-                    i.sitelist = getSites(i.Id, 1000, 1); //(i.Id, 1000, 1)
+                    i.sitelist = getSites(i.Id, 1000, 1); // Original -> (i.Id, 1000, 1)
                     
 
                     foreach (var j in i.sitelist)
@@ -309,7 +302,7 @@ namespace ConnectwiseLocations
             }
             try
             {
-                Console.WriteLine("Time taken: " + (s.ElapsedMilliseconds) + " milliseconds"); // Timer 
+                Console.WriteLine("Time taken: " + (s.ElapsedMilliseconds/1000) + " seconds"); // Timer
                 s.Stop();
 
                 //Checks to see if file already exists
@@ -330,37 +323,44 @@ namespace ConnectwiseLocations
 
                 workbook.Save("ConnectwiseSitesUpd.xlsm");
 
-                //Acquires the current directory of the ConnectwiseLocations program and saves the ConnectwiseSitesUpd.xlsm to that directory
-                string workingDirectory = Environment.CurrentDirectory;
-                string filePath = workingDirectory + "\\ConnectwiseSitesUpd.xlsm";
-                CreateWorkbook(filePath);
-                Console.WriteLine("File saved to " + filePath);
-                Console.WriteLine("Finished executing...");
-                File.Delete("ConnectwiseSites.csv");
-
-                //Running the Highlight_All_Dups Excel Macro
-                Microsoft.Office.Interop.Excel.Application excelApp = new Microsoft.Office.Interop.Excel.Application();
-                excelApp.DisplayAlerts = false;
-                Microsoft.Office.Interop.Excel.Workbook excelWorkbook = excelApp.Workbooks.Open(filePath, 0, false, 5, "", "", false, Microsoft.Office.Interop.Excel.XlPlatform.xlWindows, "",
-                    true, false, 0, true, false, false);
-                Microsoft.Office.Interop.Excel.Sheets worksheets = excelWorkbook.Worksheets;
-                excelWorkbook.Application.Run("ConnectwiseSites_Macros.Highlight_All_Dups1", Missing.Value, Missing.Value, Missing.Value,
-                             Missing.Value, Missing.Value, Missing.Value, Missing.Value,
-                             Missing.Value, Missing.Value, Missing.Value, Missing.Value,
-                             Missing.Value, Missing.Value, Missing.Value, Missing.Value,
-                             Missing.Value, Missing.Value, Missing.Value, Missing.Value,
-                             Missing.Value, Missing.Value, Missing.Value, Missing.Value,
-                             Missing.Value, Missing.Value, Missing.Value, Missing.Value,
-                             Missing.Value, Missing.Value, Missing.Value);
-                excelWorkbook.Save();
-                excelWorkbook.Close();
-                Marshal.ReleaseComObject(worksheets);
-                excelApp.Quit();
-
-
+                try
+                {
+                    RunMacro();
+                }
+                catch (Exception e) { Console.WriteLine(e.ToString()); }
 
             }
             catch (Exception e) { Console.WriteLine(e.Message); }
+        }
+
+
+        // Initiates an ExcelApplication variable and runs the Highlight_All_Dups1 macro created in the CreateWorkbook method
+        public static void RunMacro()
+        {
+            string workingDirectory = Environment.CurrentDirectory;
+            string filePath = workingDirectory + "\\ConnectwiseSitesUpd.xlsm";
+            CreateWorkbook(filePath);
+            Console.WriteLine("File saved to " + filePath);
+            Console.WriteLine("Finished executing...");
+            File.Delete("ConnectwiseSites.csv");
+
+            Microsoft.Office.Interop.Excel.Application excelApp = new Microsoft.Office.Interop.Excel.Application();
+            excelApp.DisplayAlerts = false;
+            Microsoft.Office.Interop.Excel.Workbook excelWorkbook = excelApp.Workbooks.Open(filePath, 0, false, 5, "", "", false, Microsoft.Office.Interop.Excel.XlPlatform.xlWindows, "",
+                true, false, 0, true, false, false);
+            Microsoft.Office.Interop.Excel.Sheets worksheets = excelWorkbook.Worksheets;
+            excelWorkbook.Application.Run("ConnectwiseSites_Macros.Highlight_All_Dups1", Missing.Value, Missing.Value, Missing.Value,
+                         Missing.Value, Missing.Value, Missing.Value, Missing.Value,
+                         Missing.Value, Missing.Value, Missing.Value, Missing.Value,
+                         Missing.Value, Missing.Value, Missing.Value, Missing.Value,
+                         Missing.Value, Missing.Value, Missing.Value, Missing.Value,
+                         Missing.Value, Missing.Value, Missing.Value, Missing.Value,
+                         Missing.Value, Missing.Value, Missing.Value, Missing.Value,
+                         Missing.Value, Missing.Value, Missing.Value);
+            excelWorkbook.Save();
+            excelWorkbook.Close();
+            Marshal.ReleaseComObject(worksheets);
+            excelApp.Quit();
         }
 
 
@@ -403,9 +403,5 @@ namespace ConnectwiseLocations
             catch { }
             GC.Collect();
         }
-
-
-
     }
-
-   }
+}
