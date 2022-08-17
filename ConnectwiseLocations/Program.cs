@@ -15,9 +15,9 @@ namespace ConnectwiseLocations
         static void Main(string[] args)
         {
             s.Start(); //Timer
+            Console.WriteLine("Starting application, may take up to 15 minutes to complete");
             var Companies = makeCompanySet();
             WriteCSV(Companies);
-            
         }
 
 
@@ -53,7 +53,6 @@ namespace ConnectwiseLocations
 
         // Web request for generating what the new site name should be
         public static string MiddlewareWebRequest(Site a)
-
         {
             string a1 = a.AddressLine1;
             string a2 = a.AddressLine2;
@@ -190,6 +189,8 @@ namespace ConnectwiseLocations
                         var latestUpdate = tempList.Max(s => s.Info.LastUpdated);
                         var bestSite = tempList.Find(s => s.Info.LastUpdated == latestUpdate);
                         var priSite = tempList.Find(s => s.PrimaryAddressFlag == true);
+
+
                         foreach (var s in tempList)
                         {
                             if (s.PrimaryAddressFlag == false && priSite != null)
@@ -214,6 +215,8 @@ namespace ConnectwiseLocations
             }
         }
 
+    
+
 
         // Makes a set of all companies. Adds list of sites, adds new site name, and checks for duplicate sites for each company
         public static HashSet<Company> makeCompanySet()
@@ -230,10 +233,8 @@ namespace ConnectwiseLocations
             {
                 var temp = getCompanies((int)maxPageSize, currPage);
                 foreach (var i in temp)
-
                 {   
                     i.sitelist = getSites(i.Id, 1000, 1); // Original -> (i.Id, 1000, 1)
-                    
 
                     foreach (var j in i.sitelist)
                     {
@@ -267,13 +268,14 @@ namespace ConnectwiseLocations
         }
 
 
-        //Uses set of all companies to write the csv
+        // Uses set of all companies to write the csv
         public static void WriteCSV(HashSet<Company> companySet)
         {            
             var csv = new StringBuilder();
 
             csv.AppendLine("SiteIDNumber," + "ID," + "Company," + "SiteName/duplicateID," + "address1," + "address2," + "City,"
-                + "State,"+ "Zip," + "NewSiteName," + "isDuplicate," + "isValidName," + "DuplicateOfSite#," + "isDefaultBilling," + "isPrimaryAddress" + "companyId");
+                + "State,"+ "Zip," + "NewSiteName," + "isDuplicate," + "isValidName," + "DuplicateOfSite#," + "isDefaultBilling," 
+                + "isPrimaryAddress," + "companyId," + "isDefaultMailing," + "isDefaultShipping," + "ReplaceSiteName");
             foreach (var c in companySet)
             {
                 foreach (var s in c.sitelist)
@@ -294,10 +296,13 @@ namespace ConnectwiseLocations
                     string billingFlag = "\"" + s.DefaultBillingFlag + "\"";
                     string primaryAddressBool = "\"" + s.PrimaryAddressFlag + "\"";
                     string compId = "\"" + s.Company.Id + "\"";
+                    string isDefaultMailing = "\"" + s.DefaultMailingFlag + "\"";
+                    string isDefaultShipping = "\"" + s.DefaultShippingFlag + "\"";
+                    string replaceSiteName = "\"" + ReplaceSiteName(s) + "\"";
 
                     csv.AppendLine(siteid + "," + id + "," + Company + "," + SiteName + "," + a1 + "," + a2 + "," + City + ","
                         + State + "," + Zip + "," + newSiteName + "," + dup + "," + valid + "," + dupOf + "," + billingFlag + "," 
-                        + primaryAddressBool + "," + compId);
+                        + primaryAddressBool + "," + compId + "," + isDefaultMailing + "," + isDefaultShipping + "," + replaceSiteName);
                 }
             }
             try
@@ -305,7 +310,7 @@ namespace ConnectwiseLocations
                 Console.WriteLine("Time taken: " + (s.ElapsedMilliseconds/1000) + " seconds"); // Timer
                 s.Stop();
 
-                //Checks to see if file already exists
+                // Checks to see if file already exists
                 if (File.Exists("ConnectwiseSites.csv"))
                 {
                     File.Delete("ConnectwiseSites.csv");
@@ -315,7 +320,7 @@ namespace ConnectwiseLocations
 
                 var workbook = new Workbook("ConnectwiseSites.csv");
 
-                //Checks to see if file already exists
+                // Checks to see if file already exists
                 if (File.Exists("ConnectwiseSitesUpd.xlsm"))
                 {
                     File.Delete("ConnectwiseSitesUpd.xlsm");
@@ -331,6 +336,35 @@ namespace ConnectwiseLocations
 
             }
             catch (Exception e) { Console.WriteLine(e.Message); }
+        }
+
+
+        /* Creates a string that is equal to the new site name if there is no "|" character in the SiteName variable, or replaces the left side of the "|" with newSiteName
+           if it exists in the SiteName variable */
+        public static string ReplaceSiteName(Site s)
+        {
+            // Returns the current SiteName if the newSiteName is null
+            if(s.newSiteName == "")
+                return s.Name;
+            
+
+            char[] delimiterChar = { '|' };
+            string[] newName = s.Name.Split(delimiterChar);
+            if (newName[0] == "")
+                return s.Name;
+
+            if (newName.Length <= 1) {
+                if (s.newSiteName.Length > 50)
+                    return s.newSiteName.Substring(0, 50);
+                else
+                    return s.newSiteName;
+            }
+
+            else
+            {
+                newName[0] = s.newSiteName;
+                return newName[0] + " | " + newName[1];
+            }
         }
 
 
