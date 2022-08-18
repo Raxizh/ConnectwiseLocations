@@ -143,6 +143,7 @@ namespace ConnectwiseLocations
                     string currName = s.Name;
                     char[] delimiterChars = { ' ', '|', '.' };
                     string[] words = currName.Split(delimiterChars);
+
             if (words.Length > 2)
             {
                 string delimitedName = words[0] + "." + words[1] + "." + words[2];
@@ -185,6 +186,7 @@ namespace ConnectwiseLocations
 
                         foreach (var s in tempList)
                         {
+
                             if ( s.PrimaryAddressFlag == false && priSite != null)
                             {
                                 s.DuplicateOf = priSite.Id;
@@ -287,16 +289,20 @@ namespace ConnectwiseLocations
         {
 
             string siteName;
-            string Replace;
             string currname = s.Name;
+            string newSite = s.newSiteName;
+
+            char[] nameArr = currname.ToCharArray();
+            char[] newSiteArr = currname.ToCharArray();
             string[] words = currname.Split('|');
+
+            // Checks if siteName has a "|" character and if the newSiteName isn't empty 
 
             if (words.Length == 2 && s.newSiteName != "")
             {
                 siteName = s.newSiteName + '|' + words[1];
-                char[] charArr = siteName.ToCharArray();
 
-                if (charArr.Length <= 50)
+                if (newSiteArr.Length <= 50)
                 {
                     return siteName;
                 } 
@@ -306,13 +312,14 @@ namespace ConnectwiseLocations
                 }
 
             } 
+            // Checks if the siteName has a "|" character and if the newSiteName is empty
+
             else if (words.Length == 2 && s.newSiteName == "")
             {
 
                 siteName = words[0] + '|' + words[1];
-                char[] charArr = siteName.ToCharArray();
 
-                if (charArr.Length <= 50)
+                if (newSiteArr.Length <= 50)
                 {
                     return siteName;
                 } 
@@ -322,12 +329,12 @@ namespace ConnectwiseLocations
                 }
 
             }
+            // Checks if the siteName doesn't have the "|" character and if newSiteName is empty
+
             else if (s.newSiteName == "")
             {
                 
-                char[] charArr = currname.ToCharArray();
-
-                if (currname.Length <= 50)
+                if (nameArr.Length <= 50)
                 {
                     return currname;
                 }
@@ -337,19 +344,18 @@ namespace ConnectwiseLocations
                 }
 
             }
+            // If every other case fails it falls through to this case
+
             else
             {
 
-                Replace = s.newSiteName;
-                char[] replaceArr = Replace.ToCharArray();
-
-                if (replaceArr.Length <= 50)
+                if (newSiteArr.Length <= 50)
                 {
-                    return Replace; 
+                    return newSite; 
                 } 
                 else
                 {
-                    return Replace.Substring(0, 50);
+                    return newSite.Substring(0, 50);
                 }
 
             }
