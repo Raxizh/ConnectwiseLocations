@@ -172,9 +172,12 @@ namespace ConnectwiseLocations
                             j.isDuplicate = true;
                             tempList.Add(j);
                         }
+
                     }
+
                     if (tempList.Count > 1)
                     {
+
                         var latestUpdate = tempList.Max(s => s.Info.LastUpdated);
                         var bestSite = tempList.Find(s => s.Info.LastUpdated == latestUpdate);
                         var priSite = tempList.Find(s => s.PrimaryAddressFlag == true);
@@ -208,7 +211,7 @@ namespace ConnectwiseLocations
         {
             double LocationCount = getCount();
             int currPage = 1;
-            double maxPageSize = 100; //double maxPageSize = 500;
+            double maxPageSize = 500; //double maxPageSize = 500;
             double x = LocationCount / maxPageSize;
             double numPages = Math.Ceiling(x);
             var CompanySet = new HashSet<Company>();
@@ -216,7 +219,9 @@ namespace ConnectwiseLocations
     
             while (currPage < numPages) // while (currPage < numPages)
             {
+
                 var temp = getCompanies((int)maxPageSize, currPage);
+
                 foreach (var i in temp)
                 {
                     i.sitelist = getSites(i.Id, 1000, 1); //getSites(i.Id, 1000, 1);
@@ -254,8 +259,10 @@ namespace ConnectwiseLocations
 
         public static void checkFlag(List<Site> S)
         {
+
             foreach(Site s in S)
             {
+
                 if (s.PrimaryAddressFlag)
                 {
                     s.hasPrimFlag = true;
@@ -272,23 +279,97 @@ namespace ConnectwiseLocations
                 {
                     s.hasShipFlag = true;
                 }
+
             }
         }
+
+        public static string ReplaceSiteName(Site s)
+        {
+
+            string siteName;
+            string Replace;
+            string currname = s.Name;
+            string[] words = currname.Split('|');
+
+            if (words.Length == 2 && s.newSiteName != "")
+            {
+                siteName = s.newSiteName + '|' + words[1];
+                char[] charArr = siteName.ToCharArray();
+
+                if (charArr.Length <= 50)
+                {
+                    return siteName;
+                } 
+                else 
+                {
+                    return siteName.Substring(0,50);
+                }
+
+            } 
+            else if (words.Length == 2 && s.newSiteName == "")
+            {
+
+                siteName = words[0] + '|' + words[1];
+                char[] charArr = siteName.ToCharArray();
+
+                if (charArr.Length <= 50)
+                {
+                    return siteName;
+                } 
+                else
+                {
+                    return siteName.Substring(0, 50);
+                }
+
+            }
+            else if (s.newSiteName == "")
+            {
+                
+                char[] charArr = currname.ToCharArray();
+
+                if (currname.Length <= 50)
+                {
+                    return currname;
+                }
+                else
+                {
+                    return currname.Substring(0, 50);
+                }
+
+            }
+            else
+            {
+
+                Replace = s.newSiteName;
+                char[] replaceArr = Replace.ToCharArray();
+
+                if (replaceArr.Length <= 50)
+                {
+                    return Replace; 
+                } 
+                else
+                {
+                    return Replace.Substring(0, 50);
+                }
+
+            }
+        }
+
         //Uses set of all companies to write the csv
         public static void WriteCSV(HashSet<Company> companySet)
         {
             var csv = new StringBuilder();
-
             csv.AppendLine("SiteIDNumber," + "ID," + "CompanyId," + "Company," + "SiteName," 
                             + "address1," + "address2," + "City,"
                             + "State,"+ "Zip," + "NewSiteName," + "isDuplicate," 
                             + "isValidName," + "DuplicateOfSite#," + "HasPrimFlag," 
-                            + "HasBillFlag," + "HasShipFlag," + "hasMailFlag");
+                            + "HasBillFlag," + "HasShipFlag," + "hasMailFlag," + "ReplaceSiteName");
 
             foreach (var c in companySet)
             {
                 foreach (var s in c.sitelist)
                 {
+
                     string siteid = "\"" + s.Id + "\"";
                     string id = "\"" + s.Company.Identifier + "\"";
                     string companyId = "\"" + c.Id + "\"";
@@ -307,13 +388,13 @@ namespace ConnectwiseLocations
                     string hasBillFlag = "\"" + s.hasBillFlag + "\"";
                     string hasShipFlag = "\"" + s.hasShipFlag + "\"";
                     string hasMailFlag = "\"" + s.hasMailFlag + "\"";
-
+                    string Name = "\"" + ReplaceSiteName(s) + "\"";
 
                     csv.AppendLine(siteid + "," + id + "," + companyId + "," + Company + "," + SiteName + "," + a1 + "," 
                                     + a2 + "," + City + "," + State + "," + Zip + "," 
                                     + newSiteName + "," + dup + "," + valid + "," + dupOf + "," 
                                     + hasPrimFlag + "," + hasBillFlag 
-                                    + "," + hasShipFlag + "," + hasMailFlag);
+                                    + "," + hasShipFlag + "," + hasMailFlag + "," + Name);
                 }
             }
             File.WriteAllText("ConnectwiseSites.csv", csv.ToString());
