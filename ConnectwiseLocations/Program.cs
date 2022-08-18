@@ -166,7 +166,7 @@ namespace ConnectwiseLocations
         }
 
 
-        // Checks if sites have the same new site name to flag them as duplicates, then picks the most recently updated as the site to keep 
+        // Detects and flags duplicate sites in the sitelist provided from the MakeCompanySet method 
         public static void dupSites(List<Site> l)
         {
             var dupList = l.GroupBy(s => s.newSiteName).Select(grp => grp.ToList());
@@ -218,7 +218,7 @@ namespace ConnectwiseLocations
     
 
 
-        // Makes a set of all companies. Adds list of sites, adds new site name, and checks for duplicate sites for each company
+        // Makes a HashSet of all Company objects by making calls to the getCompanies method 
         public static HashSet<Company> makeCompanySet()
             {
             double LocationCount = getCount();
@@ -268,7 +268,9 @@ namespace ConnectwiseLocations
         }
 
 
-        // Uses set of all companies to write the csv
+        /* This method takes a set of companies gathered in the makeCompanySet Method and writes the sites into an Excel (.csv) file
+         * and converts the .csv file into a .xlsm before calling the RunMacro method
+         */
         public static void WriteCSV(HashSet<Company> companySet)
         {            
             var csv = new StringBuilder();
@@ -340,11 +342,12 @@ namespace ConnectwiseLocations
 
 
         /* Creates a string that is equal to the new site name if there is no "|" character in the SiteName variable, or replaces the left side of the "|" with newSiteName
-           if it exists in the SiteName variable */
+         * if it exists in the SiteName variable 
+         */
         public static string ReplaceSiteName(Site s)
         {
             // Returns the current SiteName if the newSiteName is null
-            if(s.newSiteName == "")
+            if (s.newSiteName == "")
                 return s.Name;
             
 
@@ -368,7 +371,7 @@ namespace ConnectwiseLocations
         }
 
 
-        // Initiates an ExcelApplication variable and runs the Highlight_All_Dups1 macro created in the CreateWorkbook method
+        // Starts an excelWorkbook application variable in the current directory and runs the Highlight_All_Dups1 macro created in the CreateWorkbook method 
         public static void RunMacro()
         {
             string workingDirectory = Environment.CurrentDirectory;
@@ -398,7 +401,7 @@ namespace ConnectwiseLocations
         }
 
 
-        // Creates the Macro-Enabled Excel Workbook as well as the Highlight_All_Dups Macro
+        // Creates the Macro-Enabled Excel Workbook as well as the Highlight_All_Dups1 Macro before saving the workbook 
         public static void CreateWorkbook(string fileName)
         {
             try
