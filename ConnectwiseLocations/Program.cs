@@ -15,34 +15,44 @@ namespace ConnectwiseLocations
         static void Main(string[] args)
         {
             s.Start(); //Timer
+            Console.WriteLine("Starting application, may take up to 15 minutes to complete");
             var Companies = makeCompanySet();
             WriteCSV(Companies);
         }
 
+
         public static string WebRequest(string url)
         {
-
             using (var client = new HttpClient())
             {
                 using (HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Get, url))
                 {
-
-                    client.DefaultRequestHeaders.Add("Authorization", "Basic Z2RzK1p1MmIxRHI4UHJKTk1pR0Q6b2lMMG40a3MzYkgySUJndg=="); //Jacobb authorization added -- 7/12/22
-                    client.DefaultRequestHeaders.Add("clientID", "be97d76e-6436-4cd7-ab32-9e8e86369453");
-                    var response = client.SendAsync(request).Result;
-                    var content = response.Content.ReadAsStringAsync().Result;
-                    if (!response.IsSuccessStatusCode)
+                    try
                     {
-                        throw new Exception($"{content}: {response.StatusCode}");
+                        client.DefaultRequestHeaders.Add("Authorization", "Basic Z2RzK1p1MmIxRHI4UHJKTk1pR0Q6b2lMMG40a3MzYkgySUJndg=="); //JacobB authorization added -- 7/12/22
+                        client.DefaultRequestHeaders.Add("clientID", "be97d76e-6436-4cd7-ab32-9e8e86369453"); //JacobB clientID added -- 7/12/22
+                        var response = client.SendAsync(request).Result;
+                        var content = response.Content.ReadAsStringAsync().Result;
+
+                        if (!response.IsSuccessStatusCode)
+                        {
+                            throw new Exception($"{content}: {response.StatusCode}");
+                        }
+                        return content;
                     }
-                    return content;
+                    catch
+                    {
+                        Console.WriteLine("Your Authorization or ClientID is invalid, please try again.");
+                        Environment.Exit(0);
+                    }
                 }
+                return "Invalid"; // Returns invalid if exception is caught
             }
         }
 
+
         // Web request for generating what the new site name should be
         public static string MiddlewareWebRequest(Site a)
-
         {
             string a1 = a.AddressLine1;
             string a2 = a.AddressLine2;
@@ -85,10 +95,10 @@ namespace ConnectwiseLocations
                     {
                         return null;
                     }
-
                 }
             }
         }
+
 
         // Web request for getting a list of companies
         public static List<Company> getCompanies(int pageSize, int pageNum)
@@ -102,7 +112,6 @@ namespace ConnectwiseLocations
             var url = "https://connectwise.getgds.com/v4_6_release/apis/3.0/company/companies/?conditions=deletedflag=false&pagesize=" +  pageSize + "&page=" + pageNum; //deletedFlag = true to get a list of deleted sites(Do the same in the getCount function)
             var results = JsonConvert.DeserializeObject<List<Company>>(WebRequest(url), settings);
             return results;
-
         }
 
 
@@ -120,6 +129,7 @@ namespace ConnectwiseLocations
             return results;
         }
 
+
         // Returns number of companies connectwise has
         public static long getCount()
         {
@@ -132,9 +142,8 @@ namespace ConnectwiseLocations
             var url = "https://connectwise.getgds.com/v4_6_release/apis/3.0/company/companies/count/?conditions=deletedflag=false"; // deletedFlag = true to get a list of deleted sites (Do the same in the getCompanies function)
             var results = JsonConvert.DeserializeObject<Number>(WebRequest(url), settings);
             return results.Count;
-            
-
         }
+
 
         // Checks if the current name for the site is valid
         public static bool isValidName(Site s)
@@ -154,12 +163,10 @@ namespace ConnectwiseLocations
                 else return false;
             }
             return false;
-
         }
 
 
-
-        // Checks if sites have the same new site name to flag them as duplicates, then picks the most recently updated as the site to keep 
+        // Detects and flags duplicate sites in the sitelist provided from the MakeCompanySet method 
         public static void dupSites(List<Site> l)
         {
             var dupList = l.GroupBy(s => s.newSiteName).Select(grp => grp.ToList());
@@ -178,9 +185,12 @@ namespace ConnectwiseLocations
                     }
                     if (tempList.Count > 1)
                     {
+                        // Determines the main site based on if it is flagged as primary address or it is the last updated site in that order
                         var latestUpdate = tempList.Max(s => s.Info.LastUpdated);
                         var bestSite = tempList.Find(s => s.Info.LastUpdated == latestUpdate);
                         var priSite = tempList.Find(s => s.PrimaryAddressFlag == true);
+
+
                         foreach (var s in tempList)
                         {
                             if (s.PrimaryAddressFlag == false && priSite != null)
@@ -205,28 +215,26 @@ namespace ConnectwiseLocations
             }
         }
 
-        // Makes a set of all companies. Adds list of sites, adds new site name, and checks for duplicate sites for each company
+    
+
+
+        // Makes a HashSet of all Company objects by making calls to the getCompanies method 
         public static HashSet<Company> makeCompanySet()
             {
             double LocationCount = getCount();
             int currPage = 1;
-            double maxPageSize = 100; //500 
-            double x = LocationCount / maxPageSize; //x = 4918 / 500 = 9.836
-            double numPages = Math.Ceiling(x); // numPages = 10
+            double maxPageSize = 100; // Original -> 500 
+            double x = LocationCount / maxPageSize; 
+            double numPages = Math.Ceiling(x); 
             var CompanySet = new HashSet<Company>();
             var csv = new StringBuilder();
 
-
-            while (currPage <= numPages) // (currPage <= numPages)
+            while (currPage <= numPages) // Original -> (currPage <= numPages)
             {
                 var temp = getCompanies((int)maxPageSize, currPage);
-                
-
                 foreach (var i in temp)
-
                 {   
-                    i.sitelist = getSites(i.Id, 1000, 1); //(i.Id, 1000, 1)
-                    
+                    i.sitelist = getSites(i.Id, 1000, 1); // Original -> (i.Id, 1000, 1)
 
                     foreach (var j in i.sitelist)
                     {
@@ -260,13 +268,16 @@ namespace ConnectwiseLocations
         }
 
 
-        //Uses set of all companies to write the csv
+        /* This method takes a set of companies gathered in the makeCompanySet Method and writes the sites into an Excel (.csv) file
+         * and converts the .csv file into a .xlsm before calling the RunMacro method
+         */
         public static void WriteCSV(HashSet<Company> companySet)
         {            
             var csv = new StringBuilder();
 
             csv.AppendLine("SiteIDNumber," + "ID," + "Company," + "SiteName/duplicateID," + "address1," + "address2," + "City,"
-                + "State,"+ "Zip," + "NewSiteName," + "isDuplicate," + "isValidName," + "DuplicateOfSite#," + "isDefaultBilling," + "isPrimaryAddress" + "companyId");
+                + "State,"+ "Zip," + "NewSiteName," + "isDuplicate," + "isValidName," + "DuplicateOfSite#," + "isDefaultBilling," 
+                + "isPrimaryAddress," + "companyId," + "isDefaultMailing," + "isDefaultShipping," + "ReplaceSiteName");
             foreach (var c in companySet)
             {
                 foreach (var s in c.sitelist)
@@ -287,18 +298,21 @@ namespace ConnectwiseLocations
                     string billingFlag = "\"" + s.DefaultBillingFlag + "\"";
                     string primaryAddressBool = "\"" + s.PrimaryAddressFlag + "\"";
                     string compId = "\"" + s.Company.Id + "\"";
+                    string isDefaultMailing = "\"" + s.DefaultMailingFlag + "\"";
+                    string isDefaultShipping = "\"" + s.DefaultShippingFlag + "\"";
+                    string replaceSiteName = "\"" + ReplaceSiteName(s) + "\"";
 
                     csv.AppendLine(siteid + "," + id + "," + Company + "," + SiteName + "," + a1 + "," + a2 + "," + City + ","
                         + State + "," + Zip + "," + newSiteName + "," + dup + "," + valid + "," + dupOf + "," + billingFlag + "," 
-                        + primaryAddressBool + "," + compId);
+                        + primaryAddressBool + "," + compId + "," + isDefaultMailing + "," + isDefaultShipping + "," + replaceSiteName);
                 }
             }
             try
             {
-                Console.WriteLine("Time taken: " + (s.ElapsedMilliseconds) + " milliseconds"); // Timer 
+                Console.WriteLine("Time taken: " + (s.ElapsedMilliseconds/1000) + " seconds"); // Timer
                 s.Stop();
 
-                //Checks to see if file already exists
+                // Checks to see if file already exists
                 if (File.Exists("ConnectwiseSites.csv"))
                 {
                     File.Delete("ConnectwiseSites.csv");
@@ -308,7 +322,7 @@ namespace ConnectwiseLocations
 
                 var workbook = new Workbook("ConnectwiseSites.csv");
 
-                //Checks to see if file already exists
+                // Checks to see if file already exists
                 if (File.Exists("ConnectwiseSitesUpd.xlsm"))
                 {
                     File.Delete("ConnectwiseSitesUpd.xlsm");
@@ -316,41 +330,78 @@ namespace ConnectwiseLocations
 
                 workbook.Save("ConnectwiseSitesUpd.xlsm");
 
-                //Acquires the current directory of the ConnectwiseLocations program and saves the ConnectwiseSitesUpd.xlsm to that directory
-                string workingDirectory = Environment.CurrentDirectory;
-                string filePath = workingDirectory + "\\ConnectwiseSitesUpd.xlsm";
-                CreateWorkbook(filePath);
-                Console.WriteLine("File saved to " + filePath);
-                Console.WriteLine("Finished executing...");
-                File.Delete("ConnectwiseSites.csv");
-
-                //Running the Highlight_All_Dups Excel Macro
-                Microsoft.Office.Interop.Excel.Application excelApp = new Microsoft.Office.Interop.Excel.Application();
-                excelApp.DisplayAlerts = false;
-                Microsoft.Office.Interop.Excel.Workbook excelWorkbook = excelApp.Workbooks.Open(filePath, 0, false, 5, "", "", false, Microsoft.Office.Interop.Excel.XlPlatform.xlWindows, "",
-                    true, false, 0, true, false, false);
-                Microsoft.Office.Interop.Excel.Sheets worksheets = excelWorkbook.Worksheets;
-                excelWorkbook.Application.Run("ConnectwiseSites_Macros.Highlight_All_Dups1", Missing.Value, Missing.Value, Missing.Value,
-                             Missing.Value, Missing.Value, Missing.Value, Missing.Value,
-                             Missing.Value, Missing.Value, Missing.Value, Missing.Value,
-                             Missing.Value, Missing.Value, Missing.Value, Missing.Value,
-                             Missing.Value, Missing.Value, Missing.Value, Missing.Value,
-                             Missing.Value, Missing.Value, Missing.Value, Missing.Value,
-                             Missing.Value, Missing.Value, Missing.Value, Missing.Value,
-                             Missing.Value, Missing.Value, Missing.Value);
-                excelWorkbook.Save();
-                excelWorkbook.Close();
-                Marshal.ReleaseComObject(worksheets);
-                excelApp.Quit();
-
-
+                try
+                {
+                    RunMacro();
+                }
+                catch (Exception e) { Console.WriteLine(e.ToString()); }
 
             }
             catch (Exception e) { Console.WriteLine(e.Message); }
         }
 
 
-        // Creates the Macro-Enabled Excel Workbook as well as the Highlight_All_Dups Macro
+        /* Creates a string that is equal to the new site name if there is no "|" character in the SiteName variable, or replaces the left side of the "|" with newSiteName
+         * if it exists in the SiteName variable 
+         */
+        public static string ReplaceSiteName(Site s)
+        {
+            // Returns the current SiteName if the newSiteName is null
+            if (s.newSiteName == "")
+                return s.Name;
+            
+
+            char[] delimiterChar = { '|' };
+            string[] newName = s.Name.Split(delimiterChar);
+            if (newName[0] == "")
+                return s.Name;
+
+            if (newName.Length <= 1) {
+                if (s.newSiteName.Length > 50)
+                    return s.newSiteName.Substring(0, 50);
+                else
+                    return s.newSiteName;
+            }
+
+            else
+            {
+                newName[0] = s.newSiteName;
+                return newName[0] + " | " + newName[1];
+            }
+        }
+
+
+        // Starts an excelWorkbook application variable in the current directory and runs the Highlight_All_Dups1 macro created in the CreateWorkbook method 
+        public static void RunMacro()
+        {
+            string workingDirectory = Environment.CurrentDirectory;
+            string filePath = workingDirectory + "\\ConnectwiseSitesUpd.xlsm";
+            CreateWorkbook(filePath);
+            Console.WriteLine("File saved to " + filePath);
+            Console.WriteLine("Finished executing...");
+            File.Delete("ConnectwiseSites.csv");
+
+            Microsoft.Office.Interop.Excel.Application excelApp = new Microsoft.Office.Interop.Excel.Application();
+            excelApp.DisplayAlerts = false;
+            Microsoft.Office.Interop.Excel.Workbook excelWorkbook = excelApp.Workbooks.Open(filePath, 0, false, 5, "", "", false, Microsoft.Office.Interop.Excel.XlPlatform.xlWindows, "",
+                true, false, 0, true, false, false);
+            Microsoft.Office.Interop.Excel.Sheets worksheets = excelWorkbook.Worksheets;
+            excelWorkbook.Application.Run("ConnectwiseSites_Macros.Highlight_All_Dups1", Missing.Value, Missing.Value, Missing.Value,
+                         Missing.Value, Missing.Value, Missing.Value, Missing.Value,
+                         Missing.Value, Missing.Value, Missing.Value, Missing.Value,
+                         Missing.Value, Missing.Value, Missing.Value, Missing.Value,
+                         Missing.Value, Missing.Value, Missing.Value, Missing.Value,
+                         Missing.Value, Missing.Value, Missing.Value, Missing.Value,
+                         Missing.Value, Missing.Value, Missing.Value, Missing.Value,
+                         Missing.Value, Missing.Value, Missing.Value);
+            excelWorkbook.Save();
+            excelWorkbook.Close();
+            Marshal.ReleaseComObject(worksheets);
+            excelApp.Quit();
+        }
+
+
+        // Creates the Macro-Enabled Excel Workbook as well as the Highlight_All_Dups1 Macro before saving the workbook 
         public static void CreateWorkbook(string fileName)
         {
             try
@@ -389,9 +440,5 @@ namespace ConnectwiseLocations
             catch { }
             GC.Collect();
         }
-
-
-
     }
-
-   }
+}
